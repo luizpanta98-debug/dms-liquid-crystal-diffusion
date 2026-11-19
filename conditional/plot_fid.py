@@ -268,12 +268,12 @@ def plot_fid(num_steps_values, fid_values, out_path, floor=None):
 		ax.annotate(f'{v:.1f}', (k, v), textcoords='offset points', xytext=(0, 6), ha='center')
 	if floor is not None:
 		ax.axhline(floor, linestyle='--', color='0.4', linewidth=1,
-			label=f'Real vs real ({floor:.1f})')
+			label=f'Real vs real ({floor:.2f})')
 		ax.legend(frameon=False)
 	ax.set_xscale('log')
 	ax.set_xlabel('DDIM sampling steps')
 	ax.set_ylabel('FID')
-	ax.set_ylim(bottom=0)
+	ax.set_ylim(0, 1.12*max(fid_values))   # room for the value labels
 	ax.set_xticks(num_steps_values)
 	ax.set_xticklabels(num_steps_values)
 	ax.minorticks_off()
