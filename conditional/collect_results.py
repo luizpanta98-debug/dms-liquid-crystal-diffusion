@@ -1,38 +1,29 @@
 '''
-Collect the evaluation outputs of one or more trained models into LaTeX files
-for the article (Overleaf folder "results/").
+Collect the evaluation outputs into the LaTeX files and figures of the article
+(Overleaf folder "results/").
 
-Run from conditional/ after nll_calc.py, plot_fid.py and
-resnet50/test_script.py have been executed for each model:
+Run from conditional/ after nll_calc.py, fid_real_reference.py, plot_fid.py,
+resnet50/test_script.py, nearest_neighbours.py and ordinal_analysis.py:
 
-    python collect_results.py \
-        --runs logs/lq256snr_cfg logs/lq256snr_cfg_eps \
-        --names x0 eps \
-        --main x0 \
-        --main_steps 100 \
-        --epoch 100 \
-        --classifier resnet50/logs/resnet50/test \
-        --out ../results
+    python collect_results.py --runs logs/lq256snr_cfg --names x0 --main x0 \\
+        --main_steps 100 --epoch 100 --classifier resnet50/logs/resnet50/test --out ../results
 
-Inputs read for each run directory R (save_checkpoint of that model) and
-evaluated epoch E (--epoch; "eval_epoch" in config.json when evaluating):
+Inputs read for the run directory R (save_checkpoint) and evaluated epoch E:
     R/config.json
+    R/metrics/fid_real_reference.json
     R/metrics/epoch_E/nll.json
-    R/metrics/epoch_E/fid_and_inception.json
-    R/metrics/epoch_E/nearest_neighbours.json, nn_distances.pdf, nearest_neighbours.pdf (optional)
-    R/metrics/epoch_E/ordinal/ordinal_metrics.json and its figures (optional, ordinal_analysis.py)
-    <classifier>/<basename of R>/epoch_E/metrics.json            (optional)
-    <classifier>/<basename of R>/epoch_E/confusion_matrices.pdf  (optional, copied)
+    R/metrics/epoch_E/fid_and_inception.json, fid_vs_num_steps.pdf
+    R/metrics/epoch_E/nearest_neighbours.json, nn_summary.pdf, nearest_neighbours.pdf
+    R/metrics/epoch_E/ordinal/hc_plane.pdf
+    <classifier>/<basename of R>/epoch_E/metrics.json, confusion_matrices.npz
 
 Outputs (upload the whole folder to Overleaf, replacing results/):
     macros.tex            numbers quoted in the text (\\FIDmain, \\NLLmain, ...)
-    table_models.tex      NLL / FID / classifier metrics
-    table_fid_steps.tex   FID against the number of DDIM steps (only with a curve)
-    fid_vs_steps.pdf      FID against DDIM steps, one curve per model
-    confusion_<name>.pdf  ResNet-50 confusion matrices for each model
-    nn_distances_<name>.pdf, nn_pairs_<name>.pdf  nearest-neighbour check
-    ordinal_confusion_<name>.pdf, hc_plane_<name>.pdf, ordinal_distance_<name>.pdf
-                          ordinal-pattern comparison (ordinal_analysis.py)
+    table_models.tex      NLL / FID / classifier metrics (Table 3)
+    fid_vs_steps.pdf      FID against DDIM steps with the real-vs-real floor
+    confusion_<name>.pdf  ResNet-50 confusion matrices
+    nn_summary_<name>.pdf, nn_pairs_<name>.pdf  nearest-neighbour check
+    hc_plane_<name>.pdf   complexity-entropy plane
 '''
 import argparse
 import json
@@ -142,25 +133,6 @@ def write_tables(runs, main, main_steps, out):
 	lines += [r'\hline', r'\end{tabular}']
 	(out / 'table_models.tex').write_text('\n'.join(lines) + '\n')
 
-	# FID against DDIM steps (only if a curve was computed).
-	all_steps = sorted({k for r in runs for k in r['steps']})
-	if len(all_steps) < 2:
-		print('only one step count: skipping table_fid_steps.tex')
-		all_steps = []
-	cols = 'l' + 'c' * len(runs)
-	head = ' & '.join(label.get(r['prediction_type'], r['name']) for r in runs)
-	lines = [rf'\begin{{tabular}}{{{cols}}}', r'\hline',
-		rf'Steps & FID ({head}) \\' if len(runs) == 1 else rf'Steps & {head} \\', r'\hline']
-	for k in all_steps:
-		cells = []
-		for r in runs:
-			s = r['steps'].get(k, {})
-			cells += [fmt(s.get('fid'), 1)]
-		lines.append(f'{k} & ' + ' & '.join(cells) + r' \\')
-	lines += [r'\hline', r'\end{tabular}']
-	if all_steps:
-		(out / 'table_fid_steps.tex').write_text('\n'.join(lines) + '\n')
-
 	# Macros for numbers quoted in the text.
 	m = next(r for r in runs if r['name'] == main)
 	s = main_value(m, main_steps)
@@ -194,7 +166,6 @@ def write_tables(runs, main, main_steps, out):
 		'NNheld': fmt((m['nn'] or {}).get('held_out_median'), 3),
 		'NNfrac': fmt((m['nn'] or {}).get('fraction_generated_below_held_out_1st_percentile'), 3),
 	}
-	macros.update(ordinal_macros(m['ordinal']))
 	for r in runs:
 		key = macro_name(r['name'])
 		macros[f'NLL{key}'] = fmt(r['nll'], 2)
@@ -215,75 +186,19 @@ def real_floor(run, num_a, num_b=50000):
 	return None
 
 
-def ordinal_macros(o):
-	'''Macros of ordinal_analysis.py (75-pattern and 11-group Hellinger 1-NN).'''
-	if o is None:
-		return {}
-	p75, p11 = o.get('patterns75', {}), o.get('groups11', {})
-	dist = o.get('distance_matrices', {}).get('patterns75', {})
-	diag = dist.get('generated_diagonal_min_count')
-	return {
-		'OrdBalAccReal': fmt(p75.get('real', {}).get('balanced_accuracy'), 3),
-		'OrdBalAccGen': fmt(p75.get('synthetic', {}).get('balanced_accuracy'), 3),
-		'OrdAccReal': fmt(p75.get('real', {}).get('accuracy'), 3),
-		'OrdAccGen': fmt(p75.get('synthetic', {}).get('accuracy'), 3),
-		'OrdGroupBalAccReal': fmt(p11.get('real', {}).get('balanced_accuracy'), 3),
-		'OrdGroupBalAccGen': fmt(p11.get('synthetic', {}).get('balanced_accuracy'), 3),
-		'OrdDiagMin': '--' if diag is None else str(diag),
-	}
-
-
-def plot(runs, out):
-	"""FID against DDIM steps (curve points), one line per model."""
-	try:
-		import matplotlib
-		matplotlib.use('Agg')
-		import matplotlib.pyplot as plt
-		from matplotlib import font_manager
-	except ImportError:
-		print('matplotlib not available; skipping fid_vs_steps.pdf')
-		return
-	for f in font_manager.findSystemFonts():
-		if 'texgyretermes' in f.lower():
-			font_manager.fontManager.addfont(f)
-	plt.rcParams.update({'font.family': 'serif',
-		'font.serif': ['TeX Gyre Termes', 'Times New Roman', 'DejaVu Serif'],
-		'font.size': 8, 'mathtext.fontset': 'stix', 'pdf.fonttype': 42})
-	colors = {'x0': '#2a78d6', 'eps': '#eb6834'}
-	label = {'x0': r'$x_0$ prediction', 'eps': r'$\epsilon$ prediction'}
-	fig, ax = plt.subplots(figsize=(3.35, 2.3))
-	ticks = set()
-	shown = [r for r in runs if r['steps']]
-	if not shown:
-		print('no FID results; skipping fid_vs_steps.pdf')
-		return
-	for r in shown:
-		k = sorted(r['steps'])
-		ticks |= set(k)
-		fid = [r['steps'][i]['fid'] for i in k]
-		ax.plot(k, fid, '-o', color=colors.get(r['prediction_type'], '#1baf7a'), lw=2, ms=5,
-			mec='white', mew=1, label=label.get(r['prediction_type'], r['name']))
-		if len(shown) == 1:
-			for x, y in zip(k, fid):
-				ax.annotate(f'{y:.1f}', (x, y), textcoords='offset points', xytext=(0, 6),
-					ha='center', fontsize=7)
-	ax.set_ylabel('FID (lower is better)')
-	ax.set_ylim(0, max(max(r['steps'][i]['fid'] for i in r['steps']) for r in shown) * 1.25)
-	ax.set_xlabel('DDIM sampling steps $K$')
-	ax.set_xscale('log')
-	ax.set_xticks(sorted(ticks))
-	ax.set_xticklabels([str(v) for v in sorted(ticks)])
-	ax.minorticks_off()
-	ax.grid(True, color='#e4e3df', lw=0.6)
-	ax.set_axisbelow(True)
-	for side in ('top', 'right'):
-		ax.spines[side].set_visible(False)
-	ax.tick_params(colors='#6b6a64', length=0)
-	if len(shown) > 1:
-		ax.legend(frameon=False, fontsize=7)
-	fig.tight_layout(pad=0.4)
-	fig.savefig(out / 'fid_vs_steps.pdf')
-	plt.close(fig)
+def copy_figures(r, out):
+	"""Copy the figures of one run into the results folder."""
+	sources = (
+		(r['metrics'] / 'fid_vs_num_steps.pdf', 'fid_vs_steps.pdf'),
+		(r['metrics'] / 'nn_summary.pdf', f"nn_summary_{r['name']}.pdf"),
+		(r['metrics'] / 'nearest_neighbours.pdf', f"nn_pairs_{r['name']}.pdf"),
+		(r['metrics'] / 'ordinal' / 'hc_plane.pdf', f"hc_plane_{r['name']}.pdf"),
+	)
+	for src, name in sources:
+		if src.exists():
+			shutil.copy(src, out / name)
+		else:
+			print(f'missing: {src}')
 
 
 def main():
@@ -315,7 +230,6 @@ def main():
 	for r, c in zip(runs, classifiers):
 		r['classifier_dir'] = c
 	write_tables(runs, a.main, a.main_steps, out)
-	plot(runs, out)
 	for r in runs:
 		folder = Path(r['classifier_dir']) / r['dir'].name / f"epoch_{r['epoch']}"
 		target = out / f"confusion_{r['name']}.pdf"
@@ -330,15 +244,7 @@ def main():
 				print(f'WARNING: could not draw {target.name}: {type(e).__name__}: {e}')
 		if not drawn and (folder / 'confusion_matrices.pdf').exists():
 			shutil.copy(folder / 'confusion_matrices.pdf', target)
-		for name, target in (('nn_distances.pdf', 'nn_distances'), ('nearest_neighbours.pdf', 'nn_pairs'),
-				('nn_summary.pdf', 'nn_summary')):
-			src = r['metrics'] / name
-			if src.exists():
-				shutil.copy(src, out / f"{target}_{r['name']}.pdf")
-		for target in ('ordinal_confusion', 'hc_plane', 'ordinal_distance'):
-			src = r['metrics'] / 'ordinal' / f'{target}.pdf'
-			if src.exists():
-				shutil.copy(src, out / f"{target}_{r['name']}.pdf")
+		copy_figures(r, out)
 	print(f'LaTeX results written to {out.resolve()}')
 	print((out / 'macros.tex').read_text())
 

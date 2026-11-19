@@ -11,15 +11,15 @@ ESI of the article maps each equation to the code. Each file does one thing:
 | `train_script.py` | Training with Min-SNR-5 weighting, class-balanced sampling, label dropout, EMA |
 | `test_script.py` | Draws sample grids with DDIM |
 | `nll_calc.py` | NLL bound (bits/dim) on the corner crops of every validation image (`--crops 4` or `1`) |
-| `plot_fid.py` | FID of 10,000 generated images against 50,000 real crops at K = 10, 25, 50, 100 (`--steps`); at the main K = num_steps (100) also KID; saves after every K and resumes |
-| `fid_real_reference.py` | FID and KID between two disjoint halves of the real images (10,000 vs 50,000 views): the value of an ideal generator under the same protocol |
+| `plot_fid.py` | FID of 10,000 generated images against 50,000 real crops at K = 10, 25, 50, 100 (`--steps`); figure of FID against K with the real-vs-real floor; saves after every K and resumes |
+| `fid_real_reference.py` | FID between two disjoint halves of the real images (10,000 vs 50,000 views): the value of an ideal generator under the same protocol |
 | `resnet50/` | ResNet-50 phase classifier, confusion matrices on real and generated images |
 | `nearest_neighbours.py` | Memorisation check: distance of generated images to the closest training crop |
-| `ordinal.py`, `ordinal_analysis.py` | 2x2 ordinal-pattern descriptors (75 tie patterns, groups A–K, Hellinger 1-NN) and complexity–entropy plane, generated vs real (`test_ordinal.py` tests them without a GPU) |
+| `ordinal.py`, `ordinal_analysis.py` | Complexity–entropy plane of 2x2 ordinal patterns, generated vs real held-out crops (`test_ordinal.py` tests them without a GPU) |
 | `collect_results.py` | Turns all metric files into LaTeX tables/macros for the article |
-| `article_plots.py` | Article plot style (confusion matrices), used by `collect_results.py` and `ordinal_analysis.py` |
+| `article_plots.py` | Confusion-matrix figure in the article style, used by `collect_results.py` |
 | `plot_nn_summary.py` | Summary figure of the nearest-neighbour check |
-| `figures/` | Scripts for single article figures (U-Net diagram, annotated textures, confusion matrices) |
+| `figures/` | Scripts for single article figures: U-Net diagram (Fig. 2), annotated textures (Fig. 4), confusion matrices |
 
 ## Order of execution (from `conditional/`)
 
@@ -31,7 +31,7 @@ python plot_fid.py --epoch 100              # -> .../epoch_100/fid_and_inception
 python resnet50/train_script.py             # classifier (once; reuses the same held-out files)
 python resnet50/test_script.py              # -> resnet50/logs/resnet50/test/<run>/epoch_100/metrics.json
 python nearest_neighbours.py                # memorisation check
-python ordinal_analysis.py --epoch 100      # -> <save_checkpoint>/metrics/epoch_100/ordinal/
+python ordinal_analysis.py --epoch 100 --precision bf16   # -> <save_checkpoint>/metrics/epoch_100/ordinal/hc_plane.pdf
 python collect_results.py --runs logs/lq256snr_cfg --names x0 --main x0 --epoch 100 --out ../results
 ```
 

@@ -1,11 +1,11 @@
 '''
-Reference FID and KID between two disjoint sets of real textures.
+Reference FID between two disjoint sets of real textures.
 
 The images of every class are split at random into two halves (A, B), so no
 image contributes to both sets. From half A we draw N_A and from half B N_B
 distinct crop/flip views (four corner crops x four flips per image) with the
 class proportions of the dataset, exactly as for plot_fid.py, and compute
-FID(A, B) and KID(A, B). With N_A = generated images and N_B = real reference
+FID(A, B). With N_A = generated images and N_B = real reference
 of plot_fid.py, this is the value of a "perfect" generator under the same
 protocol: the floor against which the model is compared.
 
@@ -26,7 +26,7 @@ import torch as th
 from pytorch_fid.fid_score import calculate_frechet_distance
 from plot_fid import (
 	CropDataset, real_dataset_and_counts, sample_labels, get_inception_model,
-	real_features, stats_of, kid, GEN_SAMPLES, NUM_SAMPLES)
+	real_features, stats_of, GEN_SAMPLES, NUM_SAMPLES)
 
 
 def split_halves(targets, num_classes, rng):
@@ -56,7 +56,7 @@ def views_of(images, targets, class_counts, rng):
 def main():
 	p = argparse.ArgumentParser(description=__doc__.split('\n')[1])
 	p.add_argument('--pairs', nargs='+', default=[f'{GEN_SAMPLES}:{NUM_SAMPLES}'],
-		help='N_A:N_B, views of half A and of half B (one FID and KID per pair)')
+		help='N_A:N_B, views of half A and of half B (one FID per pair)')
 	args = p.parse_args()
 	pairs = [tuple(int(n) for n in pair.split(':')) for pair in args.pairs]
 
@@ -90,15 +90,13 @@ def main():
 			print(f'{num_a}:{num_b}: features of half {name} done')
 		(mu_a, sig_a), (mu_b, sig_b) = stats_of(feats[0]), stats_of(feats[1])
 		fid = float(calculate_frechet_distance(mu_a, sig_a, mu_b, sig_b))
-		kid_mean, kid_std = kid(feats[0], feats[1], seed=config['seed'])
-		print(f'real A ({num_a}) vs real B ({num_b}): FID={fid:.3f}  KID={kid_mean:.5f} +- {kid_std:.5f}')
+		print(f'real A ({num_a}) vs real B ({num_b}): FID={fid:.3f}')
 		results = [r for r in results
 			if (r.get('num_a', r.get('num_per_set')), r.get('num_b', r.get('num_per_set'))) != (num_a, num_b)]
-		results.append({'num_a': num_a, 'num_b': num_b, 'fid': fid,
-			'kid': kid_mean, 'kid_std_over_subsets': kid_std})
+		results.append({'num_a': num_a, 'num_b': num_b, 'fid': fid})
 
 		report = {
-			'metric': 'FID and KID between two disjoint halves of the real images (split by image within each class)',
+			'metric': 'FID between two disjoint halves of the real images (split by image within each class)',
 			'views': 'corner crops x flips, class proportions of the dataset, without replacement',
 			'seed': config['seed'],
 			'images_half_a': int(len(half_a)), 'images_half_b': int(len(half_b)),

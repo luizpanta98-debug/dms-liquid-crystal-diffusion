@@ -1,0 +1,10 @@
+# data and model outputs are not part of the repository
+data/
+logs/
+**/logs/
+*.pt
+*.pth
+*.npz
+__pycache__/
+*.pyc
+.ipynb_checkpoints/

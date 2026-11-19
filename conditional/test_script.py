@@ -74,39 +74,6 @@ def ddim_cond_sample(net, dm, config, batch_size=10, num_samples=100,
 					img_num+=1
 
 
-def cond_sample(net, dm, config, batch_size=10, num_samples=20, out_dir='gen_samples'):
-	os.makedirs(out_dir, exist_ok=True)
-
-	_, class_dict = find_classes(config['data_fp'])
-	class_dict = {idx:classname for classname,idx in class_dict.items()}
-	lbls = [idx for idx,_ in class_dict.items()]
-	img_num = 0
-
-	for y in lbls:
-		with th.inference_mode():
-			for _ in range(0, num_samples, batch_size):
-				xt = th.randn(
-					batch_size,
-					config['in_channels'],
-					config['img_resolution'],
-					config['img_resolution'],
-					device=config['device'])
-
-				for ts in tqdm( list(reversed(range(dm.T))) ):
-					ts = th.full((batch_size,), ts, dtype=th.long, device=config['device'])
-					ys = th.full((batch_size,), y, dtype=th.long, device=config['device'])
-					ys = F.one_hot(ys, num_classes=config['label_dim'])
-					xt = dm.p(xt, ts, ys, net)
-
-				xt = xt.detach().cpu().permute(0,2,3,1).numpy()
-				for np_img in xt:
-					np_img = (np_img + 1)/2 #[-1,1]
-					np_img = (np_img * 255).clip(0, 255).astype(np.uint8)
-					img = Image.fromarray(np_img)
-					img.save(f"{out_dir}/{class_dict[y]}{img_num}.png")
-					img_num+=1
-
-
 if __name__ == "__main__":
 	with open("config.json", "r") as f:
 		config = json.load(f)
@@ -134,5 +101,4 @@ if __name__ == "__main__":
 		model_path, map_location=config['device'], weights_only=False))
 	print(f'weights loaded: epoch {epoch}.')
 
-	#cond_sample(net, dm, config)
 	ddim_cond_sample(net, dm, config)

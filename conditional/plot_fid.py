@@ -5,12 +5,11 @@ Protocol (defaults, change on the command line):
   * curve: K in NUM_STEPS_VALUES (10, 25, 50, 100), --curve_samples 10000
     generated images per K
   * main value: --main_samples 10000 images at --main_steps K (default: num_steps
-    of config.json), i.e. the curve point at K = 100; FID and KID are reported
+    of config.json), i.e. the curve point at K = 100
   * reference: 50,000 real crop/flip views (features computed once)
-  * floor: fid_real_reference.py computes FID and KID between two disjoint halves
+  * floor: fid_real_reference.py computes the FID between two disjoint halves
     of the real images with the same sizes (10,000 vs 50,000 views)
 Every FID is therefore FID(10k generated, 50k real): one N for all numbers.
-KID (Binkowski et al. 2018) is unbiased in N; 100 subsets of 1000 images.
 
 Results are written after every K to <save_checkpoint>/metrics/epoch_<N>/
 fid_and_inception.json, and K values already in that file are skipped, so an
@@ -50,7 +49,6 @@ from data import is_valid_file, get_checkpoint, metrics_dir, apply_epoch_arg
 NUM_STEPS_VALUES = [10, 25, 50, 100]   # FID-vs-steps curve; 100 = num_steps is also the main value
 NUM_SAMPLES = 50000          # real reference views
 GEN_SAMPLES = 10000          # generated images per K (curve and main value)
-KID_SUBSETS, KID_SUBSET_SIZE = 100, 1000
 GEN_BATCH = 4                # overridden by --batch (guidance doubles it: 8 on the GPU)
 FEAT_BATCH = 50
 
@@ -183,25 +181,6 @@ def stats_of(feats):
 
 def real_stats(dataset, device, model):
 	return stats_of(real_features(dataset, device, model))
-
-
-def kid(feats_a, feats_b, seed=0, subsets=KID_SUBSETS, size=KID_SUBSET_SIZE):
-	'''Kernel Inception Distance: unbiased MMD^2 with the cubic polynomial kernel
-	k(x,y) = (x.y/d + 1)^3, averaged over random subsets (as in StyleGAN2-ADA).
-	Returns (mean, standard deviation over subsets).'''
-	rng = np.random.RandomState(seed)
-	d = feats_a.shape[1]
-	m = min(len(feats_a), len(feats_b), size)
-	values = []
-	for _ in range(subsets):
-		x = feats_a[rng.choice(len(feats_a), m, replace=False)].astype(np.float64)
-		y = feats_b[rng.choice(len(feats_b), m, replace=False)].astype(np.float64)
-		kxx = (x @ x.T / d + 1) ** 3
-		kyy = (y @ y.T / d + 1) ** 3
-		kxy = (x @ y.T / d + 1) ** 3
-		values.append((kxx.sum() - np.trace(kxx) + kyy.sum() - np.trace(kyy)) / (m*(m-1))
-			- 2*kxy.mean())
-	return float(np.mean(values)), float(np.std(values))
 
 
 @th.inference_mode()
@@ -450,12 +429,8 @@ def main():
 		report['results'].append({'num_steps': num_steps, 'num_samples': n, 'fid': fid})
 		if is_main:
 			fid = fid_of(feats, mu_real, sigma_real)
-			kid_mean, kid_std = kid(feats, feats_real, seed=config['seed'])
-			print(f'main K={num_steps}: FID={fid:.3f}  KID={kid_mean:.5f} +- {kid_std:.5f}'
-				f'  (N={len(feats)})')
-			report['main'] = {'num_steps': num_steps, 'num_samples': len(feats), 'fid': fid,
-				'kid': kid_mean, 'kid_std_over_subsets': kid_std,
-				'kid_subsets': KID_SUBSETS, 'kid_subset_size': KID_SUBSET_SIZE}
+			print(f'main K={num_steps}: FID={fid:.3f}  (N={len(feats)})')
+			report['main'] = {'num_steps': num_steps, 'num_samples': len(feats), 'fid': fid}
 			np.save(os.path.join(out_dir, f'inception_features_K{num_steps}.npy'), feats)
 		del feats
 

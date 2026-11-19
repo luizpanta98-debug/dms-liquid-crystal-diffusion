@@ -1,11 +1,11 @@
 '''
 Article plot style, shared by all scripts that draw figures for the article.
 
-plot_confusion(folder, out): confusion matrices, real (a) above generated (b),
-Blues, every cell annotated with sum-preserving rounded proportions. Used for
-the ResNet-50 (collect_results.py) and the ordinal-pattern classifier
-(ordinal_analysis.py). <folder> must contain confusion_matrices.npz in the
-format written by resnet50/conf_matrix.py.
+plot_confusion(folder, out, layout): ResNet-50 confusion matrices, real (a) and
+generated (b), beside each other (layout='row', as in the article) or one above
+the other ('column'); Blues, every cell annotated with sum-preserving rounded
+proportions. <folder> must contain confusion_matrices.npz in the format written
+by resnet50/conf_matrix.py. Used by collect_results.py.
 
 Command line (from conditional/):
     python article_plots.py <folder with confusion_matrices.npz> out.pdf [row|column]

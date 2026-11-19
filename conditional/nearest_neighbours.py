@@ -13,7 +13,7 @@ Run from conditional/:  python nearest_neighbours.py
 Outputs in <save_checkpoint>/metrics/:
     nearest_neighbours.json   distance statistics per class
     nearest_neighbours.pdf    generated images next to their nearest training crop
-    nn_distances.pdf          histogram: generated vs held-out real
+    nn_summary.pdf            median distances per phase (plot_nn_summary.py)
 '''
 import json
 import os
@@ -155,7 +155,6 @@ def main():
 	for name, job in (
 			('nearest_neighbours.pdf', lambda: plot_pairs(images, labels, i_gen, d_gen, train_set,
 				classes, os.path.join(out, 'nearest_neighbours.pdf'))),
-			('nn_distances.pdf', lambda: plot_hist(d_gen, d_test, os.path.join(out, 'nn_distances.pdf'))),
 			('nn_summary.pdf', plot_summary_figure)):
 		try:
 			job()
@@ -210,23 +209,3 @@ def plot_pairs(images, labels, idx, dist, train_set, classes, path):
 	fig.tight_layout(pad=0.3)
 	fig.savefig(path, dpi=200)
 	plt.close(fig)
-
-
-def plot_hist(d_gen, d_test, path):
-	import matplotlib
-	matplotlib.use('Agg')
-	import matplotlib.pyplot as plt
-	fig, ax = plt.subplots(figsize=(3.4, 2.4))
-	bins = np.linspace(0, max(d_gen.max(), d_test.max()), 40)
-	ax.hist(d_test, bins=bins, density=True, alpha=0.6, label='Held-out real')
-	ax.hist(d_gen, bins=bins, density=True, alpha=0.6, label='Generated')
-	ax.set_xlabel('Distance to nearest training crop')
-	ax.set_ylabel('Density')
-	ax.legend(frameon=False, fontsize=7)
-	fig.tight_layout()
-	fig.savefig(path)
-	plt.close(fig)
-
-
-if __name__ == '__main__':
-	main()
