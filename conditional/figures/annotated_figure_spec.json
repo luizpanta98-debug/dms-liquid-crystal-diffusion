@@ -1,0 +1,128 @@
+[
+ {
+  "file": "Nematic/00011.png",
+  "title": "Nematic",
+  "boxes": [
+   {
+    "x": 96,
+    "y": 168,
+    "s": 88,
+    "label": "point\nsingularity"
+   },
+   {
+    "x": 0,
+    "y": 0,
+    "s": 96,
+    "label": "schlieren\nbrushes"
+   }
+  ]
+ },
+ {
+  "file": "SmAa/00004.png",
+  "title": "SmAa",
+  "boxes": [
+   {
+    "x": 40,
+    "y": 72,
+    "s": 96,
+    "label": "fans meeting\nat apex"
+   },
+   {
+    "x": 168,
+    "y": 160,
+    "s": 88,
+    "label": "fan\nboundary"
+   }
+  ]
+ },
+ {
+  "file": "SmAb/00007.png",
+  "title": "SmAb",
+  "boxes": [
+   {
+    "x": 8,
+    "y": 16,
+    "s": 96,
+    "label": "fan at\nextinction"
+   },
+   {
+    "x": 140,
+    "y": 130,
+    "s": 96,
+    "label": "fan\njunctions"
+   }
+  ]
+ },
+ {
+  "file": "SmC/00009.png",
+  "title": "SmC",
+  "boxes": [
+   {
+    "x": 176,
+    "y": 120,
+    "s": 80,
+    "label": "point\nsingularity"
+   },
+   {
+    "x": 0,
+    "y": 120,
+    "s": 96,
+    "label": "broken\nschlieren"
+   }
+  ]
+ },
+ {
+  "file": "SmF/00002.png",
+  "title": "SmF",
+  "boxes": [
+   {
+    "x": 16,
+    "y": 100,
+    "s": 96,
+    "label": "thin domain\nline"
+   },
+   {
+    "x": 150,
+    "y": 60,
+    "s": 96,
+    "label": "smooth colour\ngradient"
+   }
+  ]
+ },
+ {
+  "file": "SmG/00010.png",
+  "title": "SmG",
+  "boxes": [
+   {
+    "x": 100,
+    "y": 56,
+    "s": 112,
+    "label": "mosaic\nplatelet"
+   },
+   {
+    "x": 36,
+    "y": 100,
+    "s": 64,
+    "label": "specks\n(artefact)"
+   }
+  ]
+ },
+ {
+  "file": "SmI/00005.png",
+  "title": "SmI",
+  "boxes": [
+   {
+    "x": 64,
+    "y": 60,
+    "s": 96,
+    "label": "domain\nboundary"
+   },
+   {
+    "x": 0,
+    "y": 88,
+    "s": 64,
+    "label": "bubbles\n(artefact)"
+   }
+  ]
+ }
+]

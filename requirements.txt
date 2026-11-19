@@ -1,0 +1,11 @@
+torch>=2.0
+torchvision>=0.15
+numpy
+scipy
+scikit-learn
+matplotlib
+Pillow
+tqdm
+pytorch-fid==0.3.0
+# optional, for the plot style of some figures
+SciencePlots
